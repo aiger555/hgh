@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Exam • High Correctness Mode</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+<style>
+:root{
+--bg:#0a0e17;
+--card:#111827;
+--primary:#6366f1;
+--accent:#a78bfa;
+--success:#10b981;
+--danger:#ef4444;
+--warning:#f59e0b;
+--text:#e2e8f0;
+--text-light:#94a3b8;
+--gray:#334155;
+--error-bg:rgba(239,68,68,0.15);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+min-height:100vh;
+background:linear-gradient(135deg,#0a0e17,#0f172a);
+color:var(--text);
+font-family:system-ui,sans-serif;
+line-height:1.5;
+}
+.container{max-width:650px;margin:0 auto;padding:2rem 1rem;}
+header{text-align:center;padding:2.5rem 0 1.5rem;}
+h1{
+font-size:2.6rem;
+font-weight:800;
+background:linear-gradient(90deg,#c084fc,#818cf8,#60a5fa);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+.status-pill{
+display:inline-flex;
+align-items:center;
+gap:0.5rem;
+padding:0.6rem 1.4rem;
+border-radius:999px;
+font-weight:600;
+margin:1rem 0;
+}
+.open{background:rgba(16,185,129,0.2);color:var(--success);border:1px solid var(--success);}
+.closed{background:rgba(239,68,68,0.2);color:var(--danger);border:1px solid var(--danger);}
+.submitted{background:rgba(99,102,241,0.2);color:var(--accent);border:1px solid var(--accent);}
+.card{
+background:var(--card);
+border-radius:1.25rem;
+padding:2rem;
+box-shadow:0 20px 40px -10px rgba(0,0,0,0.5);
+border:1px solid rgba(99,102,241,0.1);
+margin-bottom:2rem;
+}
+.question{font-size:1.3rem;font-weight:600;margin-bottom:1.8rem;}
+.options{display:flex;flex-direction:column;gap:1rem;}
+.option{
+background:rgba(30,41,59,0.7);
+border:2px solid transparent;
+border-radius:1rem;
+padding:1.2rem 1.5rem;
+cursor:pointer;
+transition:all .2s ease;
+font-size:1.05rem;
+}
+.option:hover{background:rgba(45,55,75,0.9);transform:translateX(5px);}
+.option.selected{
+border-color:var(--primary);
+background:linear-gradient(90deg,rgba(99,102,241,0.25),rgba(167,139,250,0.18));
+box-shadow:0 0 0 3px rgba(99,102,241,0.3);
+}
+.submit-area{text-align:center;margin-top:2rem;}
+.btn{
+padding:1rem 2.5rem;
+font-size:1.1rem;
+font-weight:600;
+border-radius:999px;
+border:none;
+cursor:pointer;
+background:linear-gradient(90deg,var(--primary),var(--accent));
+color:white;
+transition:all .25s;
+}
+.btn:hover:not(:disabled){transform:translateY(-3px);}
+.btn:disabled{background:var(--gray);opacity:0.6;cursor:not-allowed;}
+.message{
+margin:1.5rem 0;
+padding:1rem 1.5rem;
+border-radius:1rem;
+font-weight:500;
+}
+.success{background:rgba(16,185,129,0.2);color:var(--success);border:1px solid var(--success);}
+.error{background:var(--error-bg);color:var(--danger);border:1px solid var(--danger);}
+.warning{background:rgba(245,158,11,0.15);color:var(--warning);border:1px solid var(--warning);}
+.audit-log{
+background:rgba(30,41,59,0.5);
+border-radius:1rem;
+padding:1rem;
+font-family:monospace;
+font-size:0.85rem;
+max-height:200px;
+overflow-y:auto;
+}
+.admin-panel{text-align:center;margin:1.5rem 0;padding:1rem;background:rgba(30,41,59,0.3);border-radius:1rem;}
+.footer{text-align:center;color:var(--text-light);padding:2rem 0;font-size:0.9rem;}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+<h1>Exam — High Correctness</h1>
+<div class="status-pill" id="examStatus">Exam status...</div>
+</header>
+
+<div class="admin-panel">
+<button class="btn" id="adminStartExam"><i class="fa-solid fa-play"></i> Start Exam</button>
+<button class="btn" id="adminEndExam" style="margin-left:1rem;display:none;"><i class="fa-solid fa-stop"></i> End Exam</button>
+<button class="btn" id="adminResetMySession" style="margin-left:1rem;background:#475569;">
+<i class="fa-solid fa-rotate-left"></i> Reset
+</button>
+</div>
+
+<div class="card">
+<div class="question" id="questionText"></div>
+<div class="options" id="optionsList"></div>
+<div class="submit-area">
+<button class="btn" id="submitAnswerBtn" disabled>Next</button>
+</div>
+<div class="message" id="submitMessage" style="display:none;"></div>
+</div>
+
+<div class="card" id="auditCard" style="display:none;">
+<h3>Audit Trail</h3>
+<div class="audit-log" id="auditLog"></div>
+</div>
+
+<div class="footer">Idempotent • Auditable • 2026</div>
+</div>
+
+<script>
+const EXAM={
+questions:[
+{
+id:1,
+text:"Which protocol provides the strongest consistency guarantees for writes under high load in a distributed system?",
+options:[
+{id:"a",text:"Paxos / Raft (consensus)"},
+{id:"b",text:"Eventual Consistency (Cassandra, Dynamo)"},
+{id:"c",text:"Linearizability via ZooKeeper / etcd"},
+{id:"d",text:"Two-phase commit (2PC)"},
+{id:"e",text:"CRDT"}
+]
+},
+{
+id:2,
+text:"Which CAP theorem property must be sacrificed during a network partition?",
+options:[
+{id:"a",text:"Consistency"},
+{id:"b",text:"Availability"},
+{id:"c",text:"Partition Tolerance"},
+{id:"d",text:"Latency"}
+]
+}
+],
+current:0,
+isActive:false
+};
+
+const STATE={
+selected:null,
+answers:{},
+completed:false,
+audit:[]
+};
+
+const $=s=>document.querySelector(s);
+const statusEl=$("#examStatus");
+const questionEl=$("#questionText");
+const optionsEl=$("#optionsList");
+const submitBtn=$("#submitAnswerBtn");
+const msg=$("#submitMessage");
+const auditLog=$("#auditLog");
+const auditCard=$("#auditCard");
+
+function log(text){
+const t=new Date().toISOString().slice(11,19);
+const entry=`${t} | ${text}`;
+STATE.audit.push(entry);
+const div=document.createElement("div");
+div.textContent=entry;
+auditLog.appendChild(div);
+auditCard.style.display="block";
+}
+
+function updateUI(){
+if(!EXAM.isActive){
+statusEl.textContent="Exam Closed";
+statusEl.className="status-pill closed";
+submitBtn.disabled=true;
+return;
+}
+if(STATE.completed){
+statusEl.textContent="Exam Completed";
+statusEl.className="status-pill submitted";
+submitBtn.disabled=true;
+return;
+}
+statusEl.textContent=STATE.selected?"Ready":"Select answer";
+statusEl.className="status-pill open";
+submitBtn.disabled=!STATE.selected;
+}
+
+function render(){
+const q=EXAM.questions[EXAM.current];
+questionEl.textContent=`Q${q.id}. ${q.text}`;
+optionsEl.innerHTML="";
+q.options.forEach(o=>{
+const div=document.createElement("div");
+div.className="option";
+div.textContent=o.text;
+div.onclick=()=>{
+if(!EXAM.isActive||STATE.completed)return;
+document.querySelectorAll(".option").forEach(x=>x.classList.remove("selected"));
+div.classList.add("selected");
+STATE.selected=o.id;
+updateUI();
+};
+optionsEl.appendChild(div);
+});
+}
+
+function next(){
+if(!STATE.selected)return;
+const q=EXAM.questions[EXAM.current];
+STATE.answers[q.id]=STATE.selected;
+log(`Answer saved Q${q.id}: ${STATE.selected}`);
+STATE.selected=null;
+
+if(EXAM.current<EXAM.questions.length-1){
+EXAM.current++;
+render();
+updateUI();
+}else{
+STATE.completed=true;
+localStorage.setItem("exam_answers",JSON.stringify(STATE.answers));
+log("Exam completed");
+msg.textContent="All answers submitted successfully.";
+msg.className="message success";
+msg.style.display="block";
+updateUI();
+}
+}
+
+$("#adminStartExam").onclick=()=>{
+EXAM.isActive=true;
+log("Exam started");
+updateUI();
+};
+
+$("#adminEndExam").onclick=()=>{
+EXAM.isActive=false;
+log("Exam ended");
+updateUI();
+};
+
+$("#adminResetMySession").onclick=()=>{
+localStorage.clear();
+location.reload();
+};
+
+submitBtn.onclick=next;
+
+render();
+updateUI();
+
+const saved=localStorage.getItem("exam_answers");
+if(saved){
+STATE.completed=true;
+STATE.answers=JSON.parse(saved);
+msg.textContent="Previous session restored.";
+msg.className="message success";
+msg.style.display="block";
+updateUI();
+}
+</script>
+</body>
+</html>
